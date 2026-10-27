@@ -196,3 +196,104 @@ window.__boot = (function () {
     });
   }
 })();
+
+// Text rain: "saluting-face" (with the odd o7 / _o)7) falling in a small masked bubble behind the face.
+// Decorative only: canvas sits behind the art (z-index -1), ignores pointer events, ~24fps,
+// pauses offscreen / in hidden tabs, and is a single static faint frame under reduced motion.
+(function () {
+  var c = document.querySelector('.rain');
+  if (!c || !c.getContext) return;
+  var ctx = c.getContext('2d');
+  var mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+  var WORD = 'saluting-face-', FPS_MS = 1000 / 24;
+  var dpr = 1, w = 0, h = 0, fs = 14, rows = 0, cols = [], visible = true, raf = null, last = 0;
+  var font = '700 ' + fs + 'px ' + (getComputedStyle(document.body).fontFamily || 'monospace');
+
+  function stream() {                       // a column's text: the brand stream, occasionally saluting
+    var s = '', k = (Math.random() * WORD.length) | 0;
+    while (s.length < 160) {
+      var r = Math.random();
+      if (r < 0.06) s += ' o7 ';
+      else if (r < 0.09) s += ' _o)7 ';
+      else s += WORD.slice(k) + WORD.slice(0, k);
+      k = 0;
+    }
+    return s;
+  }
+  function newCol(x, scatter) {
+    return { x: x, y: scatter ? -Math.random() * rows * 1.5 : -Math.random() * rows * 0.6,
+             v: 0.35 + Math.random() * 0.55, s: stream(), k: (Math.random() * 40) | 0, lastRow: -1 };
+  }
+  function size() {
+    var r = c.getBoundingClientRect();
+    if (!r.width) return false;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = r.width; h = r.height;
+    fs = w < 360 ? 11 : 14;
+    font = '700 ' + fs + 'px ' + (getComputedStyle(document.body).fontFamily || 'monospace');
+    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.font = font; ctx.textBaseline = 'top';
+    rows = Math.ceil(h / fs) + 1;
+    var cw = fs * 0.6 * 1.6, n = Math.floor(w / cw);
+    cols = [];
+    for (var i = 0; i < n; i++) cols.push(newCol(i * cw + (w - n * cw) / 2 + cw * 0.2, true));
+    return true;
+  }
+  function glyph(col, row) { return col.s.charAt((col.k + row) % col.s.length); }
+  function step() {
+    // fade what's there (transparent canvas, so erase instead of painting over)
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'source-over';
+    for (var i = 0; i < cols.length; i++) {
+      var col = cols[i];
+      col.y += col.v;
+      var row = Math.floor(col.y);
+      if (row !== col.lastRow && row >= 0) {
+        if (col.lastRow >= 0) {           // previous lead becomes dim trail
+          ctx.clearRect(col.x - 1, col.lastRow * fs, fs * 0.8, fs);
+          ctx.fillStyle = 'rgba(255,194,51,0.2)';
+          ctx.fillText(glyph(col, col.lastRow), col.x, col.lastRow * fs);
+        }
+        ctx.fillStyle = 'rgba(255,214,110,0.62)';   // brighter yellow lead
+        ctx.fillText(glyph(col, row), col.x, row * fs);
+        col.lastRow = row;
+      }
+      if (row > rows + 4) cols[i] = newCol(col.x, false);
+    }
+  }
+  function frame(t) {
+    raf = null;
+    if (!visible || document.hidden || mq.matches) return;
+    if (t - last >= FPS_MS) { last = t; step(); }
+    raf = requestAnimationFrame(frame);
+  }
+  function run() { if (!raf && visible && !document.hidden && !mq.matches) raf = requestAnimationFrame(frame); }
+  function staticFrame() {                 // reduced motion: one faint, still frame
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(255,194,51,0.10)';
+    cols.forEach(function (col) {
+      var top = (Math.random() * rows) | 0, len = 4 + ((Math.random() * 10) | 0);
+      for (var r = top; r < top + len && r < rows; r++) ctx.fillText(glyph(col, r), col.x, r * fs);
+    });
+  }
+  function start() {
+    if (!size()) return;
+    if (mq.matches) staticFrame();
+    else { for (var i = 0; i < 30; i++) step(); run(); }  // pre-roll so it fades in already raining
+    requestAnimationFrame(function () { c.classList.add('on'); });
+  }
+  var rt;
+  window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (size()) { if (mq.matches) staticFrame(); else for (var i = 0; i < 30; i++) step(); } }, 150); });
+  document.addEventListener('visibilitychange', run);
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (es) { visible = es[0].isIntersecting; run(); }).observe(c);
+  }
+  if (mq.addEventListener) mq.addEventListener('change', function () { if (mq.matches) staticFrame(); else run(); });
+  // fade in with the boot: ASCII rows start revealing at ~150ms, copy types from ~550ms
+  setTimeout(function () {
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(start, start); else start();
+  }, mq.matches ? 0 : 350);
+})();

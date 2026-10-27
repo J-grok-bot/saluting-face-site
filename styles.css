@@ -203,6 +203,22 @@ a { color: inherit; }
 .btn.pend { opacity: 0; transform: translateY(14px); }
 .btn { transition: border-color .25s, background-color .25s, color .15s, opacity .42s cubic-bezier(.2,.7,.25,1), transform .42s cubic-bezier(.2,.7,.25,1); }
 
+/* ---------- text rain: a small glowing bubble behind the ASCII face ---------- */
+.hero { position: relative; isolation: isolate; overflow-x: clip; }
+.hero__art { position: relative; }
+.rain {
+  position: absolute; left: 50%; top: 50%; z-index: -1;
+  width: clamp(240px, 82vw, 500px); aspect-ratio: 1; height: auto;
+  transform: translate(-50%, -50%);
+  pointer-events: none; user-select: none;
+  background: radial-gradient(closest-side, rgba(255, 194, 51, .06), rgba(255, 194, 51, 0) 100%);
+  -webkit-mask-image: radial-gradient(closest-side, #000 35%, rgba(0, 0, 0, .55) 68%, transparent 100%);
+          mask-image: radial-gradient(closest-side, #000 35%, rgba(0, 0, 0, .55) 68%, transparent 100%);
+}
+.js .rain { opacity: 0; transition: opacity 1.4s ease-out; }
+.js .rain.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .js .rain { transition: none; } }
+
 /* ---------- responsive ---------- */
 @media (max-width: 900px) {
   .hero { grid-template-columns: 1fr; min-height: 0; justify-items: start; }
