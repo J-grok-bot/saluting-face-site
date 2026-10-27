@@ -313,7 +313,11 @@ safe(function () {
     "[agent-10] online. 3 patches staged, unsigned=0.",
     "[agent-04] air-gap holding.",
     "[ops] roll call complete. 15/15 agents healthy.",
-    "[ops] op ███ is live. policy zt-v2 enforced.",
+    "[ops] inbound request via info@saluting-face.com.",
+    "[ops] client requires saluting-face crew. scope: [REDACTED].",
+    "[agent-01] -> [ops] contract verified. sig valid.",
+    "[ops] saluting-face is go. op ███ is live.",
+    "[ops] policy zt-v2 enforced.",
     "[agent-05] ACK.",
     "[agent-14] ACK. o7",
     "[ops] -> [agent-09] lead on payload. task#4410",
@@ -355,6 +359,7 @@ safe(function () {
     "[agent-02] auth review: 0 valid sessions from src.",
     "[agent-11] integrity check passed. 41/41 nodes.",
     "[ops] contained. no breach. carry on.",
+    "[agent-11] incident report queued for saluting-face ops.",
     "[agent-21] heart rate nominal. i don't have one.",
     "[agent-10] resuming. 3/3 applied. hashes verified.",
     "[agent-10] patch window closed.",
@@ -389,6 +394,8 @@ safe(function () {
     "[agent-08] honeypots stay armed. signing off.",
     "[agent-02] o7",
     "[agent-11] o7",
+    "[ops] client notified. job closed under saluting-face.",
+    "[ops] crew standing by for next request. info@saluting-face.com",
     "[ops] op ███ complete. all units stand down. o7"];
   var rnd = function (n) { return Math.floor(Math.random() * n); };
   // timestamps are the visitor's real local clock (HH:MM:SS, 24h) at the moment a line appears
@@ -403,7 +410,10 @@ safe(function () {
     var d = /^->\s*\[([a-z]+-\d+|ops)\]\s*/.exec(line);
     if (d) { out.push(['arw', '-> ']); out.push(['to', d[1]]); out.push(['', ' ']); line = line.slice(d[0].length); }
     var o7 = /(^| )o7$/.test(line); if (o7) line = line.replace(/ ?o7$/, '');
-    line.split(/(\[REDACTED\]|█+(?: █+)*)/).forEach(function (part, i) { if (part) out.push([i % 2 ? 'red' : '', part]); });
+    line.split(/(\[REDACTED\]|█+(?: █+)*)/).forEach(function (part, i) {
+      if (i % 2) { out.push(['red', part]); return; }
+      part.split(/(info@saluting-face\.com|saluting-face)/).forEach(function (q, k) { if (q) out.push([k % 2 ? (q.indexOf('@') > 0 ? 'mail' : 'brand') : '', q]); });
+    });
     if (o7) { if (line) out.push(['', ' ']); out.push(['o7', 'o7']); }
     return out;
   }
@@ -428,7 +438,9 @@ safe(function () {
   function message(line, back) {
     return row(stamp(back), function (msg) {
       tokens(line).forEach(function (t) {
-        var s = document.createElement('span'); if (t[0]) s.className = t[0]; s.textContent = t[1]; msg.appendChild(s);
+        var s = document.createElement('span'); if (t[0]) s.className = t[0];
+        if (t[0] === 'brand') s.innerHTML = 'saluting<span class="hy">-</span>face'; else s.textContent = t[1];
+        msg.appendChild(s);
       });
     });
   }
@@ -449,7 +461,7 @@ safe(function () {
       var line = SCRIPT[idx++];
       glide(message(line));
       var n = line.replace(/^\[[^\]]+\]\s*(->\s*\[[^\]]+\]\s*)?/, '').length;
-      var wait = n < 16 ? 1500 + rnd(700) : 1900 + n * 26 + rnd(800);  // ~2-3s; quick acks faster, long lines slower
+      var wait = n < 16 ? 1300 + rnd(600) : 1500 + n * 22 + rnd(700);  // ~2-3s; quick acks faster, long lines slower
       timer = setTimeout(show, idx < SCRIPT.length ? wait : 1600);
     } else {
       glide(closed()); done = true; log.classList.add('done');

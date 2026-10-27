@@ -223,7 +223,7 @@ a { color: inherit; }
 .crewlog .who.ops { color: var(--yellow); }
 .crewlog .to { color: #a99060; }
 .crewlog .arw { color: #6b6863; }
-.crewlog .o7 { color: var(--yellow); }
+.crewlog .o7, .crewlog .mail, .crewlog .brand .hy { color: var(--yellow); }
 .crewlog .red { background: var(--yellow); color: var(--bg); padding: 0 2px; }
 .crewlog .cur { display: inline-block; width: .6em; height: 1.1em; vertical-align: -.2em; background: var(--ink-dim); animation: blink 1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
