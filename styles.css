@@ -69,8 +69,8 @@ a { color: inherit; }
   font-family: var(--mono);
   font-weight: 700;
   color: var(--yellow);
-  /* 30 columns max; scale so it never wraps */
-  font-size: clamp(9px, calc((100vw - 2 * var(--pad)) / 19), 22px);
+  /* 34 columns reserved (salute wind-up reaches col 33); scale so it never wraps */
+  font-size: clamp(9px, calc((100vw - 2 * var(--pad)) / 21), 22px);
   line-height: 1.15;
   letter-spacing: 0;
   white-space: pre;
@@ -200,9 +200,8 @@ a { color: inherit; }
   background: var(--yellow); opacity: .9; pointer-events: none;
 }
 .typing .cursor { visibility: hidden; }
-.btn--primary .ch.at::after { background: var(--bg); }
-.btn.pend { background-color: transparent; border-color: transparent; }
-.btn { transition: border-color .25s, background-color .25s, color .15s; }
+.btn.pend { opacity: 0; transform: translateY(14px); }
+.btn { transition: border-color .25s, background-color .25s, color .15s, opacity .42s cubic-bezier(.2,.7,.25,1), transform .42s cubic-bezier(.2,.7,.25,1); }
 
 /* ---------- responsive ---------- */
 @media (max-width: 900px) {

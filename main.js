@@ -9,9 +9,9 @@ if (y) y.textContent = new Date().getFullYear();
   var art = document.querySelector('.ascii');
   if (!art) return;
   var rows = art.querySelectorAll('.l');
-  var W = 30;
+  var W = 34; // wind-up frames reach col 33; row 0 in the HTML is padded to 34 so width is reserved
   var TEXT = ["salut", "ing-face-s", "aluting-face-", "saluting-face-s", "aluting-f", "ace-salu", "ting-face", "-salu   ti", "ng-f     ace-sa", "luti     ng-face-salu", "ting    -face-salutin", "g-face -saluting-face", "-saluting-face-salut", "ing-face-saluting-fa", "ce-saluting-face-sa", "          luting-f", "ace-saluting-face", "-saluting-face-", "saluting-face", "-saluting-", "face-s"];
-  var ARMS = {"drop1":[null,null,null,null,null,null,[12,14],[11,22],[16,29],[22,29],[23,29],null,null,null,null,null,null,null,null,null,null],"drop2":[null,null,null,null,null,null,null,null,null,null,[22,22],[22,29],[21,29],[23,29],null,null,null,null,null,null,null],"up":[null,null,null,null,null,null,[12,14],[11,22],[16,29],[22,29],[23,29],null,null,null,null,null,null,null,null,null,null],"rest":[null,null,null,null,[11,13],[10,21],[10,28],[13,29],[22,29],null,null,null,null,null,null,null,null,null,null,null,null]};
+  var ARMS = {"lift":[null,null,null,[22,29],[15,31],[10,27],[10,22],[13,17],null,null,null,null,null,null,null,null,null,null,null,null,null],"reach":[null,[25,31],[20,32],[17,30],[13,25],[10,19],[11,14],null,null,null,null,null,null,null,null,null,null,null,null,null,null],"flick":[[24,33],[18,33],[16,28],[16,23],[11,18],[10,13],null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"rest":[null,null,null,null,[11,13],[10,21],[10,28],[13,29],[22,29],null,null,null,null,null,null,null,null,null,null,null,null]};
   if (rows.length !== TEXT.length) return;
   var reduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
 
@@ -28,8 +28,9 @@ if (y) y.textContent = new Date().getFullYear();
     }
   }
 
-  // [frame, hold ms] : arm drops, hangs, snaps back to the brow with a yellow flash
-  var SEQ = [['drop1', 70], ['drop2', 150], ['up', 60], ['rest', 280, 'flash'], ['rest', 0]];
+  // [frame, hold ms] : wind-up — the arm lifts off the brow and swings up/out to the upper right,
+  // flicks, then snaps back down onto the brow with a yellow flash (~575ms)
+  var SEQ = [['lift', 70], ['reach', 90], ['flick', 140], ['reach', 45], ['rest', 230, 'flash'], ['rest', 0]];
   var playing = false;
 
   function salute() {
@@ -63,8 +64,11 @@ window.__boot = (function () {
   var copy = document.querySelector('.hero__copy');
   var api = { running: false, finish: function () {} };
   if (!copy || !root.classList.contains('boot')) return api;
-  var targets = [copy.querySelector('.wordmark'), copy.querySelector('.pitch'), copy.querySelector('.prompt')]
-    .concat([].slice.call(copy.querySelectorAll('.hero__actions .btn')));
+  var targets = [copy.querySelector('.wordmark'), copy.querySelector('.pitch'), copy.querySelector('.prompt')];
+  // buttons don't type: they slide up + fade in as the tagline finishes
+  var btns = [].slice.call(copy.querySelectorAll('.hero__actions .btn'));
+  btns.forEach(function (b) { b.classList.add('pend'); });
+  var BTN_STAGGER = 100, BTN_DUR = 420, btnTimers = [];
   var queue = []; // [{el, chars:[span...]}]
   targets.forEach(function (t) {
     if (!t) return;
@@ -86,14 +90,13 @@ window.__boot = (function () {
       }
       node.parentNode.replaceChild(frag, node);
     });
-    if (t.classList.contains('btn')) t.classList.add('pend');
     queue.push({ el: t, chars: chars });
   });
   copy.classList.add('typing');
   root.classList.remove('boot');
   api.running = true;
 
-  // Build an irregular per-char schedule, then scale it to ~2.4s total.
+  // Build an irregular per-char schedule, then scale it to ~2s of typing (+ ~0.5s for the buttons).
   var steps = [], t = 0;
   function delayFor(ch) {
     var d = 7 + Math.random() * 16;              // irregular, like real typing
@@ -106,10 +109,11 @@ window.__boot = (function () {
     if (k) t += 110 + Math.random() * 60;        // move to the next line
     item.chars.forEach(function (s, j) { t += delayFor(s.textContent); steps.push({ t: t, s: s, el: j === 0 ? item.el : null }); });
   });
-  var scale = 2400 / t, START = 550, t0 = null, idx = 0, at = null, raf = null, timer = null;
+  var scale = 2000 / t, START = 550, t0 = null, idx = 0, at = null, raf = null, timer = null;
   function mark(s) { if (at) at.classList.remove('at'); at = s; if (s) s.classList.add('at'); }
   function done() {
     clearTimeout(timer); if (raf) cancelAnimationFrame(raf); mark(null);
+    btnTimers.forEach(clearTimeout);
     copy.querySelectorAll('.ch.pend').forEach(function (s) { s.classList.remove('pend'); });
     copy.querySelectorAll('.btn.pend').forEach(function (b) { b.classList.remove('pend'); });
     copy.classList.remove('typing');
@@ -124,7 +128,16 @@ window.__boot = (function () {
       st.s.classList.remove('pend'); last = st.s;
     }
     if (last) mark(last);
-    if (idx >= steps.length) { timer = setTimeout(done, 140); return; }
+    if (idx >= steps.length) {
+      // tagline done: release the buttons (staggered), park the cursor, then tidy up once they've landed
+      btns.forEach(function (b, i) {
+        if (!i) b.classList.remove('pend');
+        else btnTimers.push(setTimeout(function () { b.classList.remove('pend'); }, i * BTN_STAGGER));
+      });
+      btnTimers.push(setTimeout(function () { mark(null); copy.classList.remove('typing'); }, 140));
+      timer = setTimeout(done, (btns.length - 1) * BTN_STAGGER + BTN_DUR + 20);
+      return;
+    }
     raf = requestAnimationFrame(frame);
   }
   timer = setTimeout(function () { raf = requestAnimationFrame(frame); }, START); // ASCII rows begin fading at 150ms; join mid-boot
@@ -138,17 +151,16 @@ window.__boot = (function () {
   var out = prompt && prompt.querySelector('.typed');
   var sink = prompt && prompt.querySelector('.typed-sink');
   if (!out) return;
-  var MAX = 280, buf = '', started = false;
+  var MAX = 1000, buf = '', started = false;
   function render() { out.textContent = buf ? ' ' + buf : ''; }
   function add(str) {
     str = str.replace(/[\r\n\t]/g, ' ');
     if (!str) return;
     started = true;
+    if (buf.length >= MAX) return;          // past the cap, further keys are ignored
     buf = (buf + str).slice(0, MAX);
     render();
   }
-  function back() { if (buf) { buf = buf.slice(0, -1); render(); } }
-  function clear() { buf = ''; render(); }
   function isField(el) {
     if (!el || el === sink) return false;
     var t = el.tagName;
@@ -163,9 +175,7 @@ window.__boot = (function () {
     if (el === sink || isField(el)) return;
     if (window.__boot && window.__boot.running) window.__boot.finish(); // first key skips the intro
     var k = e.key;
-    if (k === 'Backspace') { if (started) { e.preventDefault(); back(); } return; }
-    if (k === 'Enter' || k === 'Escape') { if (started && !isControl(el)) { e.preventDefault(); clear(); } return; }
-    if (k.length !== 1) return;              // arrows, Tab, F-keys, etc.
+    if (k.length !== 1) return;              // Enter, Backspace, Escape, arrows, Tab...: typed text is append-only
     if (k === ' ') {
       if (!started || isControl(el)) return; // leave Space alone until typing starts
       e.preventDefault();
@@ -178,13 +188,11 @@ window.__boot = (function () {
     sink.addEventListener('beforeinput', function (e) {
       var t = e.inputType || '';
       e.preventDefault();
-      if (t.indexOf('delete') === 0) back();
-      else if (t === 'insertLineBreak' || t === 'insertParagraph') clear();
-      else if (e.data) add(e.data);
+      if (t.indexOf('insert') === 0 && t !== 'insertLineBreak' && t !== 'insertParagraph' && e.data) add(e.data);
     });
     sink.addEventListener('input', function () { if (sink.value) { add(sink.value); sink.value = ''; } });
     sink.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); clear(); }
+      if (e.key === 'Enter') e.preventDefault();
     });
   }
 })();
