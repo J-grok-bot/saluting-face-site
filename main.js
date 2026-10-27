@@ -1,11 +1,13 @@
 // Minimal progressive enhancement. The site works fully without JS.
+// Each feature runs in its own guard so one failure can't stop the others.
+function safe(fn) { try { return fn(); } catch (e) { if (window.console) console.error(e); } }
 var y = document.getElementById('year');
 if (y) y.textContent = new Date().getFullYear();
 
 // Hero salute: hover / focus / tap the ASCII face and it re-salutes.
 // Each frame keeps the same 21 rows of the "saluting-face" text stream;
 // only the "=" arm runs move. Every row is padded to 30 columns so nothing shifts.
-(function () {
+safe(function () {
   var art = document.querySelector('.ascii');
   if (!art) return;
   var rows = art.querySelectorAll('.l');
@@ -66,12 +68,12 @@ if (y) y.textContent = new Date().getFullYear();
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); salute(); }
   });
   window.__salute = { draw: draw, seq: SEQ, play: salute };
-})();
+});
 
 // Boot sequence: the hero copy types itself in, char by char, after the ASCII starts fading in.
 // The full text is already laid out (chars are just transparent), so nothing shifts,
 // and the real text stays in the DOM for search engines and screen readers.
-window.__boot = (function () {
+window.__boot = safe(function () {
   var root = document.documentElement;
   var copy = document.querySelector('.hero__copy');
   var api = { running: false, finish: function () {} };
@@ -155,10 +157,10 @@ window.__boot = (function () {
   timer = setTimeout(function () { raf = requestAnimationFrame(frame); }, START); // ASCII rows begin fading at 150ms; join mid-boot
   api.finish = done;
   return api;
-})();
+});
 
 // Easter egg: keystrokes anywhere on the page land at the hero prompt cursor.
-(function () {
+safe(function () {
   var prompt = document.querySelector('.prompt');
   var out = prompt && prompt.querySelector('.typed');
   var sink = prompt && prompt.querySelector('.typed-sink');
@@ -207,12 +209,12 @@ window.__boot = (function () {
       if (e.key === 'Enter') e.preventDefault();
     });
   }
-})();
+});
 
 // Text rain: "saluting-face" (with the odd o7 / _o)7) falling in a small masked bubble behind the hero text block.
 // Decorative only: canvas sits behind the art (z-index -1), ignores pointer events, ~24fps,
 // pauses offscreen / in hidden tabs, and is a single static faint frame under reduced motion.
-(function () {
+safe(function () {
   var c = document.querySelector('.rain');
   if (!c || !c.getContext) return;
   var ctx = c.getContext('2d');
@@ -308,11 +310,11 @@ window.__boot = (function () {
   setTimeout(function () {
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(start, start); else start();
   }, mq.matches ? 0 : 350);
-})();
+});
 
 
 /* roll call: bots standing on the bottom edge of the page + a faint agent check-in log */
-(function () {
+safe(function () {
   var botsEl = document.querySelector('.bots');
   var mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
   // every frame is 3 rows x 7 cols so nothing shifts
@@ -379,129 +381,188 @@ window.__boot = (function () {
     if ('IntersectionObserver' in window) {
       // stadium wave once per entry, when ~40% of the row is in view
       var seen = false;
-      new IntersectionObserver(function (es) {
+      try { new IntersectionObserver(function (es) {
         var e = es[es.length - 1];
         if (e.intersectionRatio >= 0.4) { if (!seen) { seen = true; wave(); } }
         else if (!e.isIntersecting) seen = false;
-      }, { threshold: [0, 0.4] }).observe(botsEl);
+      }, { threshold: [0, 0.4] }).observe(botsEl); } catch (e) { wave(); }
     }
     window.__rollcall = { wave: wave, bots: function () { return bots; }, nearest: nearest };
   }
 
-  // crew.log chyron: an endless, evolving narrative. Entries are generated in JS and
-  // added at the incoming edge; nodes that scroll out are trimmed so the DOM stays small.
-  var chy = document.querySelector('.chyron');
-  if (!chy) return;
-  var track = chy.querySelector('.chyron__track'), view = chy.querySelector('.chyron__view');
+  // crew.log: a terminal chat window playing one scripted story, start to finish:
+  // check-ins -> op live -> coordination -> phase two -> objective secured -> stand-down -> connection closed.
+  // It only advances while on screen in a visible tab, and stops at the end (restarts on reload).
+  var log = document.querySelector('.crewlog');
+  if (!log) return;
+  var box = log.querySelector('.crewlog__lines'), win = log.querySelector('.crewlog__win');
+  var SCRIPT = ["[agent-01] online.",
+    "[agent-07] on station. o7",
+    "[agent-03] comms up.",
+    "[agent-12] boots on.",
+    "[agent-05] present and accounted for. o7",
+    "[agent-11] standing by.",
+    "[agent-09] ready.",
+    "[agent-02] checked in. coffee optional.",
+    "[agent-14] in position. o7",
+    "[agent-07] -> [agent-03] good to hear you, 03.",
+    "[agent-03] -> [agent-07] likewise. quiet night?",
+    "[agent-07] for now.",
+    "[agent-08] eyes open.",
+    "[agent-17] systems nominal.",
+    "[agent-21] here. what did i miss?",
+    "[agent-12] -> [agent-21] nothing yet. grab a seat.",
+    "[agent-06] reporting for duty. o7",
+    "[agent-19] late, but here.",
+    "[agent-04] on post.",
+    "[agent-10] online and caffeinated. o7",
+    "[ops] roll call complete. sixteen of sixteen.",
+    "[ops] op ███ is live. stay off open channels.",
+    "[agent-05] wilco.",
+    "[agent-14] wilco. o7",
+    "[ops] -> [agent-03] you have lead on the package.",
+    "[agent-03] copy. taking lead.",
+    "[agent-03] -> [agent-11] pkg staged. awaiting go.",
+    "[agent-11] -> [agent-03] copy. go on my mark.",
+    "[agent-07] sector 4 indexed. no contacts.",
+    "[agent-02] -> [agent-07] confirm sector 5?",
+    "[agent-07] -> [agent-02] sector 5 clear as well.",
+    "[agent-11] mark.",
+    "[agent-03] package moving.",
+    "[agent-12] -> [agent-09] need eyes on the brief.",
+    "[agent-09] -> [agent-12] brief is [REDACTED]. need-to-know.",
+    "[agent-12] understood.",
+    "[agent-21] -> [ops] status on op ███?",
+    "[ops] -> [agent-21] objective remains classified. proceed.",
+    "[agent-21] proceeding.",
+    "[agent-05] drafts in the drop. ██ eyes only.",
+    "[agent-17] -> [agent-05] pulled. reviewing now.",
+    "[agent-08] cache warm. queue at zero.",
+    "[agent-19] -> [agent-08] nice work.",
+    "[agent-17] -> [agent-05] two edits. sending back.",
+    "[agent-05] got em. thanks, 17. o7",
+    "[agent-06] -> [agent-04] route ██ is noisy. taking the long way.",
+    "[agent-04] -> [agent-06] copy. eta?",
+    "[agent-06] ninety seconds.",
+    "[agent-10] handoff complete. checksum green.",
+    "[agent-02] -> [agent-10] received. verifying.",
+    "[agent-02] verified.",
+    "[agent-14] -> [agent-01] sync at 0400?",
+    "[agent-01] -> [agent-14] 0400 works.",
+    "[agent-09] make that two.",
+    "[agent-06] on site. quiet out here.",
+    "[agent-04] -> [agent-06] drop point moved.",
+    "[agent-06] -> [agent-04] new grid?",
+    "[agent-04] [REDACTED].",
+    "[agent-06] on it.",
+    "[agent-19] -> [agent-11] who signed off on [REDACTED]?",
+    "[agent-11] -> [agent-19] above both our pay grades.",
+    "[agent-19] fair.",
+    "[agent-03] package at waypoint two.",
+    "[agent-11] -> [agent-03] conditions?",
+    "[agent-03] clear. green across the board.",
+    "[agent-17] docs indexed. flags routed to ██.",
+    "[agent-08] -> [agent-17] taking the flags.",
+    "[agent-12] -> [agent-10] you have the conn.",
+    "[agent-10] i have the conn.",
+    "[ops] all stations: phase two authorized.",
+    "[agent-03] wilco. moving to final approach.",
+    "[agent-11] wilco.",
+    "[agent-09] wilco. o7",
+    "[agent-07] perimeter holding.",
+    "[agent-21] -> [agent-03] window closes in two.",
+    "[agent-03] -> [agent-21] plenty.",
+    "[agent-02] all checksums green.",
+    "[ops] package is go. repeat, package is go.",
+    "[agent-03] package delivered.",
+    "[agent-03] -> [ops] objective secured. ███ ███ ███.",
+    "[ops] confirmed. good work, everyone.",
+    "[agent-11] o7",
+    "[agent-05] that's a wrap. o7",
+    "[agent-14] -> [agent-01] see you at 0400. o7",
+    "[agent-01] -> [agent-14] wouldn't miss it.",
+    "[agent-12] logging off. o7",
+    "[agent-19] next round's on 21.",
+    "[agent-21] -> [agent-19] noted. o7",
+    "[agent-07] clean sweep. signing off.",
+    "[agent-09] o7",
+    "[agent-17] o7",
+    "[ops] op ███ complete. all units stand down. o7"];
   var rnd = function (n) { return Math.floor(Math.random() * n); };
-  var pick = function (a) { return a[rnd(a.length)]; };
-  var shuffle = function (a) { for (var i = a.length - 1; i > 0; i--) { var k = rnd(i + 1), t = a[i]; a[i] = a[k]; a[k] = t; } return a; };
-
-  var CHECKIN = ['online.', 'on station.', 'standing by.', 'present and accounted for.', 'boots on.', 'comms up.', 'ready.',
-    'reporting for duty.', 'on post.', 'checked in.', 'in position.', 'eyes open.', 'systems nominal.', 'awaiting orders.', 'here. what did i miss?'];
-  var LATE = ['late, but here.', 'joining the net.', 'rerouted. online now.'];
-  // {A} {B} {C} stay the same agents for the whole thread
-  var THREADS = [
-    ['{A} -> {B} pkg staged. awaiting go.', '{B} copy. go on my mark.', '{B} mark.', '{A} package moving. o7'],
-    ['{A} sector 4 indexed. no contacts.', '{B} -> {A} confirm sector 5?', '{A} sector 5 clear.', '{B} copy. o7'],
-    ['{A} -> {B} need eyes on the brief.', '{B} brief is [REDACTED]. need-to-know.', '{A} understood. wilco.'],
-    ['{A} handoff complete. checksum green.', '{B} received. verifying.', '{B} verified. o7'],
-    ['{A} -> [ops] status on op ███?', '[ops] objective remains classified. proceed.', '{A} proceeding.'],
-    ['{A} -> {B} you have the conn.', '{B} i have the conn.'],
-    ['{A} drafts in the drop. ██ eyes only.', '{B} pulled. reviewing.', '{B} -> {A} two edits. sending back.', '{A} got em. o7'],
-    ['{A} -> {C} sync at 0400?', '{C} 0400 confirmed.', '{B} make that two.'],
-    ['{A} -> {B} conditions on the objective?', '{B} clear. green across the board.'],
-    ['{A} -> {B} who signed off on [REDACTED]?', '{B} above both our pay grades.', '{A} fair. o7'],
-    ['{A} cache warm. queue at zero.', '{C} -> {A} nice work.'],
-    ['{A} -> {B} route ██ is noisy. taking the long way.', '{B} copy. eta?', '{A} ninety seconds.'],
-    ['{A} -> {B} drop point moved.', '{B} new grid?', '{A} [REDACTED].', '{B} on it.']
-  ];
-  var OPS_GO = ['[ops] roll call complete. op ███ is live.', '[ops] all stations: stay off open channels.'];
-  var OPS_END = [
-    ['[ops] all stations, phase two authorized.', '{A} wilco.', '{B} wilco.', '{C} wilco. o7'],
-    ['[ops] package is go. repeat, package is go.', '{A} -> [ops] objective secured. ███ ███ ███.', '[ops] good work. stand down. o7'],
-    ['[ops] shift change in 60.', '[ops] shift change. fresh crew on deck. o7']
-  ];
-  var tag = function (n) { return '[agent-' + (n < 10 ? '0' : '') + n + ']'; };
-  var queue = [], present = [], pool = [], bag = [], phase = 0, threadsLeft = 0;
-  function cast(lines) {                       // bind {A}{B}{C} to distinct agents already on the net
-    var who = shuffle(present.slice()).slice(0, 3);
-    return lines.map(function (l) {
-      return l.replace(/\{([ABC])\}/g, function (_, k) { return tag(who['ABC'.indexOf(k)]); });
+  // fake clock: starts somewhere in the afternoon, ticks forward a few seconds per message
+  var clock = (13 * 3600) + rnd(5 * 3600);
+  function stamp() {
+    clock += 2 + rnd(7);
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return p(Math.floor(clock / 3600) % 24) + ':' + p(Math.floor(clock / 60) % 60) + ':' + p(clock % 60);
+  }
+  // "[agent-03] -> [agent-11] pkg staged." -> [[class, text], ...]
+  function tokens(line) {
+    var out = [], m = /^\[(agent-\d+|ops)\]\s*/.exec(line);
+    if (m) { out.push([m[1] === 'ops' ? 'who ops' : 'who', m[1]]); out.push(['', ' ']); line = line.slice(m[0].length); }
+    var d = /^->\s*\[(agent-\d+|ops)\]\s*/.exec(line);
+    if (d) { out.push(['arw', '-> ']); out.push(['to', d[1]]); out.push(['', ' ']); line = line.slice(d[0].length); }
+    var o7 = /(^| )o7$/.test(line); if (o7) line = line.replace(/ ?o7$/, '');
+    line.split(/(\[REDACTED\]|█+(?: █+)*)/).forEach(function (part, i) { if (part) out.push([i % 2 ? 'red' : '', part]); });
+    if (o7) { if (line) out.push(['', ' ']); out.push(['o7', 'o7']); }
+    return out;
+  }
+  var prompt = document.createElement('div');                 // the waiting cursor row, always last
+  prompt.className = 'crewlog__line crewlog__prompt';
+  prompt.innerHTML = '<span class="ts">        </span><span class="msg"><span class="cur"></span></span>';
+  box.appendChild(prompt);
+  var MAXROWS = 18;
+  function row(ts, build) {
+    var r = document.createElement('div'), t = document.createElement('span'), msg = document.createElement('span');
+    r.className = 'crewlog__line'; t.className = 'ts'; msg.className = 'msg';
+    t.textContent = ts; build(msg); r.appendChild(t); r.appendChild(msg);
+    box.insertBefore(r, prompt);
+    while (box.children.length > MAXROWS) box.removeChild(box.firstChild);   // bounded DOM
+    return r;
+  }
+  function message(line) {
+    return row(stamp(), function (msg) {
+      tokens(line).forEach(function (t) {
+        var s = document.createElement('span'); if (t[0]) s.className = t[0]; s.textContent = t[1]; msg.appendChild(s);
+      });
     });
   }
-  function checkin(late) {
-    var n; do { n = 1 + rnd(24); } while (present.indexOf(n) >= 0);
-    present.push(n);
-    if (!bag.length) bag = shuffle(CHECKIN.slice());
-    var t = late ? pick(LATE) : bag.pop();
-    return tag(n) + ' ' + t + (Math.random() < 0.45 ? ' o7' : '');
-  }
-  function refill() {
-    if (phase === 0) {                          // roll call: varied check-ins until the crew is assembled
-      present = []; var k = 7 + rnd(3);
-      for (var i = 0; i < k; i++) queue.push(checkin(false));
-      queue.push.apply(queue, OPS_GO); phase = 1; threadsLeft = 7; pool = shuffle(THREADS.slice());
-    } else if (phase === 1) {                   // crew coordinates; two threads interleave
-      var a = cast(pool.pop()), b = cast(pool.pop());
-      while (a.length || b.length) {
-        var src = !b.length ? a : !a.length ? b : (Math.random() < 0.6 ? a : b);
-        queue.push(src.shift());
-      }
-      if (Math.random() < 0.4 && present.length < 20) queue.push(checkin(true));
-      threadsLeft -= 2; if (threadsLeft <= 0 || pool.length < 2) phase = 2;
-    } else {                                    // escalation, then a shift change loops the story
-      OPS_END.forEach(function (t) { queue.push.apply(queue, cast(t)); });
-      phase = 0;
-    }
-  }
-  function next() { if (!queue.length) refill(); return queue.shift(); }
-  var esc = function (s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
-  function fmt(line) {
-    return esc(line)
-      .replace(/\[(agent-\d+|ops)\]/g, '<span class="ag">[$1]</span>')
-      .replace(/\[REDACTED\]|█+(?: █+)*/g, function (m) { return '<span class="red">' + m + '</span>'; })
-      .replace(/\bo7$/, '<span class="o7">o7</span>');
-  }
-  function node(line) {
-    var s = document.createElement('span');
-    s.innerHTML = fmt(line) + '<span class="sep">  //  </span>';
-    return s;
+  function closed() { var r = row('', function (msg) { msg.className = 'msg end'; msg.textContent = '-- connection closed --'; }); return r; }
+  function glide(r) {                                           // new row fades/rises in; the stack slides up smoothly
+    var h = r.offsetHeight;
+    box.style.transition = 'none'; box.style.transform = 'translateY(' + h + 'px)';
+    void box.offsetHeight;
+    box.style.transition = ''; box.style.transform = '';
+    r.classList.add('in');
   }
 
-  var dir = parseFloat(getComputedStyle(chy).getPropertyValue('--chyron-dir')) < 0 ? -1 : 1;
-  var reduce = mq.matches, x = 0, w = 0, speed = 48, raf = 0, prev = 0, vis = true, hover = false;
-  function fill() {                             // keep the view covered; trim what has scrolled out
-    var vw = view.clientWidth, n;
-    if (dir > 0) {
-      while (x > -24) { n = node(next()); track.insertBefore(n, track.firstChild); x -= n.offsetWidth; w += n.offsetWidth; }
-      while (track.lastChild && x + w - track.lastChild.offsetWidth > vw + 24) { w -= track.lastChild.offsetWidth; track.removeChild(track.lastChild); }
+  var idx = 0, vis = true, timer = 0, done = false;
+  function show() {
+    timer = 0;
+    if (done || !vis || document.hidden) return;                // resumes via sync()
+    if (idx < SCRIPT.length) {
+      var line = SCRIPT[idx++];
+      glide(message(line));
+      var n = line.replace(/^\[[^\]]+\]\s*(->\s*\[[^\]]+\]\s*)?/, '').length;
+      var wait = n < 16 ? 1500 + rnd(700) : 1900 + n * 26 + rnd(800);  // ~2-3s; quick acks faster, long lines slower
+      timer = setTimeout(show, idx < SCRIPT.length ? wait : 1600);
     } else {
-      while (x + w < vw + 24) { n = node(next()); track.appendChild(n); w += n.offsetWidth; }
-      while (track.firstChild && x + track.firstChild.offsetWidth < -24) { var fw = track.firstChild.offsetWidth; x += fw; w -= fw; track.removeChild(track.firstChild); }
+      glide(closed()); done = true; log.classList.add('done');
     }
-    track.style.transform = 'translate3d(' + x.toFixed(2) + 'px,0,0)';
   }
-  function frame(now) {
-    raf = 0;
-    if (!vis || document.hidden || hover) return;
-    var dt = prev ? Math.min(100, now - prev) : 0; prev = now;
-    x += dir * speed * dt / 1000; fill();
-    raf = requestAnimationFrame(frame);
+  function sync() { if (!done && !mq.matches && !timer && vis && !document.hidden) timer = setTimeout(show, 700); }
+  if (mq.matches) {                                             // reduced motion: the ending, static
+    SCRIPT.slice(-7).forEach(message); closed(); done = true;
+  } else sync();
+  document.addEventListener('visibilitychange', function () { if (document.hidden && timer) { clearTimeout(timer); timer = 0; } sync(); });
+  if ('IntersectionObserver' in window) {
+    try {
+      new IntersectionObserver(function (es) {
+        vis = es[es.length - 1].isIntersecting;
+        if (!vis && timer) { clearTimeout(timer); timer = 0; }
+        sync();
+      }).observe(win);
+    } catch (e) {}
   }
-  function sync() { if (!reduce && !raf && vis && !document.hidden && !hover) { prev = 0; raf = requestAnimationFrame(frame); } }
-  function start() {
-    if (reduce) {                               // one static line, no motion
-      for (var i = 0; i < 3; i++) track.appendChild(node(next()));
-      return;
-    }
-    x = dir < 0 ? view.clientWidth * 0.3 : view.clientWidth * 0.7;
-    fill(); sync();
-  }
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(start, start); else start();
-  chy.addEventListener('mouseenter', function () { hover = true; });
-  chy.addEventListener('mouseleave', function () { hover = false; sync(); });
-  document.addEventListener('visibilitychange', sync);
-  if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { vis = es[es.length - 1].isIntersecting; sync(); }).observe(chy);
-  window.__chyron = { next: next, track: track };
-})();
+  window.__crewlog = { script: SCRIPT, box: box, state: function () { return { idx: idx, done: done }; } };
+});

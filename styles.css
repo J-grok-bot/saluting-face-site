@@ -223,20 +223,28 @@ a { color: inherit; }
 /* ---------- roll call (decorative) ---------- */
 .contact { display: flex; flex-direction: column; }
 .rollcall { margin-top: auto; user-select: none; -webkit-user-select: none; }
-.chyron { --chyron-dir: 1; /* 1 = content moves left-to-right; -1 = right-to-left */
-  margin: auto 0; display: flex; align-items: stretch; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
-  font-size: 12px; line-height: 1; white-space: nowrap; color: var(--ink-dim); }
-.chyron__label { position: relative; z-index: 1; flex: none; padding: 10px 14px 10px 0; background: var(--bg); color: var(--ink); }
-.chyron__label::after { content: ""; position: absolute; right: 0; top: 25%; bottom: 25%; border-right: 1px solid var(--line); }
-.chyron__view { position: relative; flex: 1; min-width: 0; overflow: hidden; height: 32px;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 48px, #000 calc(100% - 48px), transparent);
-          mask-image: linear-gradient(90deg, transparent, #000 48px, #000 calc(100% - 48px), transparent); }
-.chyron__track { position: absolute; left: 0; top: 0; height: 100%; white-space: pre; display: flex; align-items: center; will-change: transform; }
-.chyron__track > span { flex: none; }
-.chyron .sep { color: #4a4844; }
-.chyron .o7 { color: var(--yellow); }
-.chyron .ag { color: #b7b3ab; }
-.chyron .red { background: var(--yellow); color: var(--bg); padding: 0 2px; }
+.crewlog { --rows: 8; margin: auto 0; padding-top: clamp(28px, 5vw, 48px); font-size: 12px; line-height: 1.6; }
+.crewlog__label { color: var(--ink); padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.crewlog__win { position: relative; height: calc(var(--rows) * 1.6em); overflow: hidden; margin-top: 8px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 45%); mask-image: linear-gradient(to bottom, transparent 0, #000 45%); }
+.crewlog__lines { position: absolute; left: 0; right: 0; bottom: 0; transition: transform .38s cubic-bezier(.2,.7,.3,1); }
+.crewlog__line.in { animation: logIn .38s cubic-bezier(.2,.7,.3,1) both; }
+@keyframes logIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.crewlog .end { color: #55534f; }
+/* timestamp | message; long messages wrap under the message column (hanging indent) */
+.crewlog__line { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 1.5ch; }
+.crewlog__line .msg { overflow-wrap: anywhere; color: #d9d5cd; }
+.crewlog .ts { color: #55534f; min-width: 8ch; }
+.crewlog .who { color: #c9a24e; }
+.crewlog .who.ops { color: var(--yellow); }
+.crewlog .to { color: #a99060; }
+.crewlog .arw { color: #6b6863; }
+.crewlog .o7 { color: var(--yellow); }
+.crewlog .red { background: var(--yellow); color: var(--bg); padding: 0 2px; }
+.crewlog .cur { display: inline-block; width: .6em; height: 1.1em; vertical-align: -.2em; background: var(--ink-dim); animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+@media (max-width: 560px) { .crewlog { --rows: 6; font-size: 11.5px; } }
+@media (prefers-reduced-motion: reduce) { .crewlog__lines { transition: none; } .crewlog__line.in { animation: none; } .crewlog .cur { animation: none; } }
 /* bots stand on the very bottom edge of the page */
 .ground { max-width: var(--max); margin: 0 auto; padding: 0 var(--pad); overflow: hidden; user-select: none; -webkit-user-select: none; }
 .bots { display: flex; justify-content: space-between; height: calc(3 * 1.2em); font-size: clamp(13px, 1.5vw, 16px); line-height: 1.2; }
@@ -251,6 +259,8 @@ a { color: inherit; }
   /* two-column hero: keep the wordmark inside the copy column (13 chars ≈ 7.9em) */
   .hero__copy { container-type: inline-size; }
   .wordmark { font-size: min(68px, max(34px, 5.4vw), 12.4cqi); }
+  /* rain bubble: centered on the copy column, never wider than the column plus the gap (stays off the ASCII face) */
+  .rain { width: min(600px, calc(100cqi + 2 * clamp(32px, 6vw, 80px))); }
 }
 @media (max-width: 900px) {
   .hero { grid-template-columns: 1fr; min-height: 0; justify-items: start; }
