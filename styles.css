@@ -69,8 +69,8 @@ a { color: inherit; }
   font-family: var(--mono);
   font-weight: 700;
   color: var(--yellow);
-  /* 34 columns reserved (salute wind-up reaches col 33); scale so it never wraps */
-  font-size: clamp(9px, calc((100vw - 2 * var(--pad)) / 21), 22px);
+  /* 37 columns reserved (salute peak reaches col 36); scale so it never wraps */
+  font-size: clamp(9px, calc((100vw - 2 * var(--pad)) / 23), 22px);
   line-height: 1.15;
   letter-spacing: 0;
   white-space: pre;
@@ -98,7 +98,8 @@ a { color: inherit; }
   max-width: 34ch;
   font-weight: 500;
 }
-.prompt { margin: 0 0 32px; color: var(--ink-dim); font-size: 14px; position: relative; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
+/* typed easter-egg text wraps at the tagline's length: 47 chars + 4 = 51ch */
+.prompt { margin: 0 0 32px; color: var(--ink-dim); font-size: 14px; position: relative; white-space: pre-wrap; overflow-wrap: anywhere; max-width: min(51ch, 100%); }
 .hero__copy { min-width: 0; }
 .typed-sink { position: absolute; left: 0; top: 0; width: 1px; height: 1px; padding: 0; border: 0; margin: 0; opacity: 0; font-size: 16px; color: transparent; background: transparent; caret-color: transparent; pointer-events: none; outline: none; }
 .cursor { color: var(--yellow); margin-left: 2px; }
@@ -158,14 +159,14 @@ a { color: inherit; }
 .about p { margin: 0; font-size: clamp(16px, 1.6vw, 19px); max-width: 58ch; }
 
 /* contact + footer fill the viewport so #contact can land flush under the sticky header */
-.contact { min-height: calc(100svh - var(--header-h) - 88px + var(--sec-pad) - 32px); }
+.contact { min-height: calc(100svh - var(--header-h) - 80px + var(--sec-pad) - 32px - 3 * 1.2 * clamp(13px, 1.5vw, 16px)); }
 .contact__line { font-size: clamp(18px, 3vw, 30px); font-weight: 700; margin: 0; word-break: break-all; }
 .contact__email { color: var(--yellow); text-decoration: none; border-bottom: 2px solid transparent; transition: border-color .15s; }
 .contact__email:hover { border-color: var(--yellow); }
 
 .footer {
   max-width: var(--max); margin: 0 auto;
-  padding: 28px var(--pad) 40px;
+  padding: 28px var(--pad) 32px;
   display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
   font-size: 13px; color: var(--ink-dim);
   border-top: 1px solid var(--line);
@@ -203,15 +204,15 @@ a { color: inherit; }
 .btn.pend { opacity: 0; transform: translateY(14px); }
 .btn { transition: border-color .25s, background-color .25s, color .15s, opacity .42s cubic-bezier(.2,.7,.25,1), transform .42s cubic-bezier(.2,.7,.25,1); }
 
-/* ---------- text rain: a small glowing bubble behind the ASCII face ---------- */
+/* ---------- text rain: a small glowing bubble behind the hero text block ---------- */
 .hero { position: relative; isolation: isolate; overflow-x: clip; }
-.hero__art { position: relative; }
+.hero__copy { position: relative; }
 .rain {
   position: absolute; left: 50%; top: 50%; z-index: -1;
-  width: clamp(240px, 82vw, 500px); aspect-ratio: 1; height: auto;
+  width: clamp(280px, 96vw, 600px); aspect-ratio: 1; height: auto;
   transform: translate(-50%, -50%);
   pointer-events: none; user-select: none;
-  background: radial-gradient(closest-side, rgba(255, 194, 51, .06), rgba(255, 194, 51, 0) 100%);
+  background: radial-gradient(closest-side, rgba(255, 194, 51, .085), rgba(255, 194, 51, 0) 100%);
   -webkit-mask-image: radial-gradient(closest-side, #000 35%, rgba(0, 0, 0, .55) 68%, transparent 100%);
           mask-image: radial-gradient(closest-side, #000 35%, rgba(0, 0, 0, .55) 68%, transparent 100%);
 }
@@ -219,7 +220,38 @@ a { color: inherit; }
 .js .rain.on { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .js .rain { transition: none; } }
 
+/* ---------- roll call (decorative) ---------- */
+.contact { display: flex; flex-direction: column; }
+.rollcall { margin-top: auto; user-select: none; -webkit-user-select: none; }
+.chyron { --chyron-dir: 1; /* 1 = content moves left-to-right; -1 = right-to-left */
+  margin: auto 0; display: flex; align-items: stretch; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  font-size: 12px; line-height: 1; white-space: nowrap; color: var(--ink-dim); }
+.chyron__label { position: relative; z-index: 1; flex: none; padding: 10px 14px 10px 0; background: var(--bg); color: var(--ink); }
+.chyron__label::after { content: ""; position: absolute; right: 0; top: 25%; bottom: 25%; border-right: 1px solid var(--line); }
+.chyron__view { position: relative; flex: 1; min-width: 0; overflow: hidden; height: 32px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 48px, #000 calc(100% - 48px), transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 48px, #000 calc(100% - 48px), transparent); }
+.chyron__track { position: absolute; left: 0; top: 0; height: 100%; white-space: pre; display: flex; align-items: center; will-change: transform; }
+.chyron__track > span { flex: none; }
+.chyron .sep { color: #4a4844; }
+.chyron .o7 { color: var(--yellow); }
+.chyron .ag { color: #b7b3ab; }
+.chyron .red { background: var(--yellow); color: var(--bg); padding: 0 2px; }
+/* bots stand on the very bottom edge of the page */
+.ground { max-width: var(--max); margin: 0 auto; padding: 0 var(--pad); overflow: hidden; user-select: none; -webkit-user-select: none; }
+.bots { display: flex; justify-content: space-between; height: calc(3 * 1.2em); font-size: clamp(13px, 1.5vw, 16px); line-height: 1.2; }
+.bot { margin: 0; font: inherit; width: 7ch; flex: 0 0 7ch; white-space: pre; color: var(--ink); cursor: default; -webkit-tap-highlight-color: transparent;
+  transform: translateY(.04em); /* sink the glyph descent below the edge so the feet sit on it (clipped by .ground) */
+}
+.bot b { font-weight: 700; color: var(--ink); transition: color .3s ease-out; }
+.bot.flash b { color: var(--yellow); transition: none; }
+
 /* ---------- responsive ---------- */
+@media (min-width: 901px) {
+  /* two-column hero: keep the wordmark inside the copy column (13 chars ≈ 7.9em) */
+  .hero__copy { container-type: inline-size; }
+  .wordmark { font-size: min(68px, max(34px, 5.4vw), 12.4cqi); }
+}
 @media (max-width: 900px) {
   .hero { grid-template-columns: 1fr; min-height: 0; justify-items: start; }
   .cards { grid-template-columns: 1fr; }
@@ -228,4 +260,5 @@ a { color: inherit; }
   .nav nav a:not(.nav__cta) { display: none; }
   .steps li { grid-template-columns: 44px 1fr; gap: 10px; }
   .about { grid-template-columns: 1fr; }
+  .bot { transform: translateY(.13em); }
 }

@@ -9,28 +9,40 @@ if (y) y.textContent = new Date().getFullYear();
   var art = document.querySelector('.ascii');
   if (!art) return;
   var rows = art.querySelectorAll('.l');
-  var W = 34; // wind-up frames reach col 33; row 0 in the HTML is padded to 34 so width is reserved
+  // Width reserved for the peak pose (hand shifted 7 cols right); row 0 in the HTML is padded to 37.
+  var W = 37;
+  // Base letters (the art with every `=` removed) and the hand: one rigid `=` sprite, [row, startCol, endCol] at rest.
   var TEXT = ["salut", "ing-face-s", "aluting-face-", "saluting-face-s", "aluting-f", "ace-salu", "ting-face", "-salu   ti", "ng-f     ace-sa", "luti     ng-face-salu", "ting    -face-salutin", "g-face -saluting-face", "-saluting-face-salut", "ing-face-saluting-fa", "ce-saluting-face-sa", "          luting-f", "ace-saluting-face", "-saluting-face-", "saluting-face", "-saluting-", "face-s"];
-  var ARMS = {"lift":[null,null,null,[22,29],[15,31],[10,27],[10,22],[13,17],null,null,null,null,null,null,null,null,null,null,null,null,null],"reach":[null,[25,31],[20,32],[17,30],[13,25],[10,19],[11,14],null,null,null,null,null,null,null,null,null,null,null,null,null,null],"flick":[[24,33],[18,33],[16,28],[16,23],[11,18],[10,13],null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"rest":[null,null,null,null,[11,13],[10,21],[10,28],[13,29],[22,29],null,null,null,null,null,null,null,null,null,null,null,null]};
+  var HAND = [[4, 11, 13], [5, 10, 21], [6, 10, 28], [7, 13, 29], [8, 22, 29]];
   if (rows.length !== TEXT.length) return;
   var reduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
 
-  function pad(n) { return n > 0 ? new Array(n + 1).join(' ') : ''; }
-  function draw(name) {
-    var arm = ARMS[name];
+  // Frame = base letters + the hand stamped at (dr, dc); `=` overwrites any letters underneath.
+  // No rotation, translation only.
+  function draw(dr, dc) {
+    dr = dr || 0; dc = dc || 0;
+    var grid = TEXT.map(function (t) { return (t + new Array(W + 1).join(' ')).slice(0, W).split(''); });
+    HAND.forEach(function (h) {
+      var r = h[0] + dr;
+      if (r < 0 || r >= grid.length) return;
+      for (var c = h[1] + dc; c <= h[2] + dc; c++) if (c >= 0 && c < W) grid[r][c] = '=';
+    });
     for (var i = 0; i < rows.length; i++) {
-      var t = TEXT[i], a = arm[i], html = t, len = t.length;
-      if (a) {
-        html += pad(a[0] - len) + '<b class="eq">' + pad(a[1] - a[0] + 1).replace(/ /g, '=') + '</b>';
-        len = a[1] + 1;
-      }
-      rows[i].innerHTML = html + pad(W - len);
+      rows[i].innerHTML = grid[i].join('').replace(/=+/g, '<b class="eq">$&</b>');
     }
   }
 
-  // [frame, hold ms] : wind-up — the arm lifts off the brow and swings up/out to the upper right,
-  // flicks, then snaps back down onto the brow with a yellow flash (~575ms)
-  var SEQ = [['lift', 70], ['reach', 90], ['flick', 140], ['reach', 45], ['rest', 230, 'flash'], ['rest', 0]];
+  // Path of the hand, one row/col step per frame, along an arc through Justin's waypoints:
+  // in-between (-2 rows, +3 cols) and peak (-3 rows, +7 cols). [dr, dc, hold ms, flash?]
+  // Quick rise (eased out), brief hang at the peak, snappy drop onto the brow, yellow flash on landing.
+  var SEQ = [
+    [-1, 1, 30], [-2, 2, 30], [-2, 3, 35],             // lift off the brow -> in-between
+    [-3, 4, 40], [-3, 5, 45], [-3, 6, 55], [-3, 7, 95], // ease out into the peak, hang
+    [-3, 6, 35], [-2, 5, 30], [-2, 4, 25], [-2, 3, 22], // back through the in-between...
+    [-1, 2, 20], [-1, 1, 18],                           // ...snapping down
+    [0, 0, 150, 'flash'],                               // land on the brow: flash
+    [0, 0, 0]
+  ];
   var playing = false;
 
   function salute() {
@@ -40,9 +52,9 @@ if (y) y.textContent = new Date().getFullYear();
     var k = 0;
     (function step() {
       var f = SEQ[k];
-      draw(f[0]);
-      art.classList.toggle('is-flash', f[2] === 'flash');
-      if (++k < SEQ.length) { setTimeout(step, f[1]); }
+      draw(f[0], f[1]);
+      art.classList.toggle('is-flash', f[3] === 'flash');
+      if (++k < SEQ.length) { setTimeout(step, f[2]); }
       else { art.classList.remove('is-saluting'); playing = false; }
     })();
   }
@@ -197,7 +209,7 @@ window.__boot = (function () {
   }
 })();
 
-// Text rain: "saluting-face" (with the odd o7 / _o)7) falling in a small masked bubble behind the face.
+// Text rain: "saluting-face" (with the odd o7 / _o)7) falling in a small masked bubble behind the hero text block.
 // Decorative only: canvas sits behind the art (z-index -1), ignores pointer events, ~24fps,
 // pauses offscreen / in hidden tabs, and is a single static faint frame under reduced motion.
 (function () {
@@ -254,10 +266,10 @@ window.__boot = (function () {
       if (row !== col.lastRow && row >= 0) {
         if (col.lastRow >= 0) {           // previous lead becomes dim trail
           ctx.clearRect(col.x - 1, col.lastRow * fs, fs * 0.8, fs);
-          ctx.fillStyle = 'rgba(255,194,51,0.2)';
+          ctx.fillStyle = 'rgba(255,194,51,0.3)';
           ctx.fillText(glyph(col, col.lastRow), col.x, col.lastRow * fs);
         }
-        ctx.fillStyle = 'rgba(255,214,110,0.62)';   // brighter yellow lead
+        ctx.fillStyle = 'rgba(255,214,110,0.9)';   // brighter yellow lead
         ctx.fillText(glyph(col, row), col.x, row * fs);
         col.lastRow = row;
       }
@@ -273,7 +285,7 @@ window.__boot = (function () {
   function run() { if (!raf && visible && !document.hidden && !mq.matches) raf = requestAnimationFrame(frame); }
   function staticFrame() {                 // reduced motion: one faint, still frame
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = 'rgba(255,194,51,0.10)';
+    ctx.fillStyle = 'rgba(255,194,51,0.15)';
     cols.forEach(function (col) {
       var top = (Math.random() * rows) | 0, len = 4 + ((Math.random() * 10) | 0);
       for (var r = top; r < top + len && r < rows; r++) ctx.fillText(glyph(col, r), col.x, r * fs);
@@ -296,4 +308,200 @@ window.__boot = (function () {
   setTimeout(function () {
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(start, start); else start();
   }, mq.matches ? 0 : 350);
+})();
+
+
+/* roll call: bots standing on the bottom edge of the page + a faint agent check-in log */
+(function () {
+  var botsEl = document.querySelector('.bots');
+  var mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+  // every frame is 3 rows x 7 cols so nothing shifts
+  var EASE = ' [o_o] \n /|_|\\ \n  / \\  ';
+  var SALUTE = ' [o_o]<b>7</b>\n /|_|  \n  / \\  ';
+
+  if (botsEl) {
+    var bots = [], near = [], ground = botsEl.parentNode;
+    var build = function () {
+      var fs = parseFloat(getComputedStyle(botsEl).fontSize) || 14, ch = fs * 0.6;
+      var n = Math.max(3, Math.min(16, Math.floor((botsEl.clientWidth + 2 * ch) / (9 * ch))));
+      if (n === bots.length) return;
+      botsEl.textContent = ''; bots = [];
+      for (var i = 0; i < n; i++) {
+        var p = document.createElement('pre');
+        p.className = 'bot'; p.innerHTML = EASE; p._hover = false; p._until = 0; p._up = false;
+        botsEl.appendChild(p); bots.push(p);
+      }
+    };
+    var render = function (p) {
+      var up = p._hover || p._until > Date.now();
+      if (up === p._up) return;
+      p._up = up; p.innerHTML = up ? SALUTE : EASE;
+      if (up) { p.classList.add('flash'); setTimeout(function () { p.classList.remove('flash'); }, 140); }
+    };
+    var pulse = function (p, delay, hold) {          // salute briefly (wave / tap)
+      setTimeout(function () {
+        p._until = Date.now() + hold; render(p);
+        setTimeout(function () { render(p); }, hold + 10);
+      }, delay);
+    };
+    var wave = function () { if (!mq.matches) bots.forEach(function (p, i) { pulse(p, i * 100, 420); }); };
+    var nearest = function (x) {
+      return bots.map(function (p) { var r = p.getBoundingClientRect(); return [Math.abs(r.left + r.width / 2 - x), p]; })
+        .sort(function (a, b) { return a[0] - b[0]; }).slice(0, 3).map(function (a) { return a[1]; });
+    };
+    var setHover = function (list) {          // list: bots that should be up
+      bots.forEach(function (p) {
+        var on = list.indexOf(p) >= 0;
+        if (on) { clearTimeout(p._drop); p._drop = 0; if (!p._hover) { p._hover = true; render(p); } }
+        else if (p._hover && !p._drop) {
+          p._drop = setTimeout(function () { p._drop = 0; p._hover = false; render(p); }, 150);
+        }
+      });
+    };
+    var inZone = function (y) {            // the bot row, plus a band just above it
+      var r = botsEl.getBoundingClientRect();
+      return r.bottom > 0 && y >= r.top - 120 && y <= r.bottom + 40;
+    };
+    if (!mq.matches) {
+      document.addEventListener('pointermove', function (e) {
+        if (e.pointerType !== 'mouse') return;
+        setHover(inZone(e.clientY) ? nearest(e.clientX) : []);
+      }, { passive: true });
+      document.documentElement.addEventListener('mouseleave', function () { setHover([]); });
+      window.addEventListener('blur', function () { setHover([]); });
+      document.addEventListener('pointerdown', function (e) {
+        if (e.pointerType === 'mouse' || !inZone(e.clientY)) return;
+        nearest(e.clientX).forEach(function (p) { pulse(p, 0, 650); });
+      }, { passive: true });
+    }
+    build();
+    window.addEventListener('resize', build);
+    if ('IntersectionObserver' in window) {
+      // stadium wave once per entry, when ~40% of the row is in view
+      var seen = false;
+      new IntersectionObserver(function (es) {
+        var e = es[es.length - 1];
+        if (e.intersectionRatio >= 0.4) { if (!seen) { seen = true; wave(); } }
+        else if (!e.isIntersecting) seen = false;
+      }, { threshold: [0, 0.4] }).observe(botsEl);
+    }
+    window.__rollcall = { wave: wave, bots: function () { return bots; }, nearest: nearest };
+  }
+
+  // crew.log chyron: an endless, evolving narrative. Entries are generated in JS and
+  // added at the incoming edge; nodes that scroll out are trimmed so the DOM stays small.
+  var chy = document.querySelector('.chyron');
+  if (!chy) return;
+  var track = chy.querySelector('.chyron__track'), view = chy.querySelector('.chyron__view');
+  var rnd = function (n) { return Math.floor(Math.random() * n); };
+  var pick = function (a) { return a[rnd(a.length)]; };
+  var shuffle = function (a) { for (var i = a.length - 1; i > 0; i--) { var k = rnd(i + 1), t = a[i]; a[i] = a[k]; a[k] = t; } return a; };
+
+  var CHECKIN = ['online.', 'on station.', 'standing by.', 'present and accounted for.', 'boots on.', 'comms up.', 'ready.',
+    'reporting for duty.', 'on post.', 'checked in.', 'in position.', 'eyes open.', 'systems nominal.', 'awaiting orders.', 'here. what did i miss?'];
+  var LATE = ['late, but here.', 'joining the net.', 'rerouted. online now.'];
+  // {A} {B} {C} stay the same agents for the whole thread
+  var THREADS = [
+    ['{A} -> {B} pkg staged. awaiting go.', '{B} copy. go on my mark.', '{B} mark.', '{A} package moving. o7'],
+    ['{A} sector 4 indexed. no contacts.', '{B} -> {A} confirm sector 5?', '{A} sector 5 clear.', '{B} copy. o7'],
+    ['{A} -> {B} need eyes on the brief.', '{B} brief is [REDACTED]. need-to-know.', '{A} understood. wilco.'],
+    ['{A} handoff complete. checksum green.', '{B} received. verifying.', '{B} verified. o7'],
+    ['{A} -> [ops] status on op ███?', '[ops] objective remains classified. proceed.', '{A} proceeding.'],
+    ['{A} -> {B} you have the conn.', '{B} i have the conn.'],
+    ['{A} drafts in the drop. ██ eyes only.', '{B} pulled. reviewing.', '{B} -> {A} two edits. sending back.', '{A} got em. o7'],
+    ['{A} -> {C} sync at 0400?', '{C} 0400 confirmed.', '{B} make that two.'],
+    ['{A} -> {B} conditions on the objective?', '{B} clear. green across the board.'],
+    ['{A} -> {B} who signed off on [REDACTED]?', '{B} above both our pay grades.', '{A} fair. o7'],
+    ['{A} cache warm. queue at zero.', '{C} -> {A} nice work.'],
+    ['{A} -> {B} route ██ is noisy. taking the long way.', '{B} copy. eta?', '{A} ninety seconds.'],
+    ['{A} -> {B} drop point moved.', '{B} new grid?', '{A} [REDACTED].', '{B} on it.']
+  ];
+  var OPS_GO = ['[ops] roll call complete. op ███ is live.', '[ops] all stations: stay off open channels.'];
+  var OPS_END = [
+    ['[ops] all stations, phase two authorized.', '{A} wilco.', '{B} wilco.', '{C} wilco. o7'],
+    ['[ops] package is go. repeat, package is go.', '{A} -> [ops] objective secured. ███ ███ ███.', '[ops] good work. stand down. o7'],
+    ['[ops] shift change in 60.', '[ops] shift change. fresh crew on deck. o7']
+  ];
+  var tag = function (n) { return '[agent-' + (n < 10 ? '0' : '') + n + ']'; };
+  var queue = [], present = [], pool = [], bag = [], phase = 0, threadsLeft = 0;
+  function cast(lines) {                       // bind {A}{B}{C} to distinct agents already on the net
+    var who = shuffle(present.slice()).slice(0, 3);
+    return lines.map(function (l) {
+      return l.replace(/\{([ABC])\}/g, function (_, k) { return tag(who['ABC'.indexOf(k)]); });
+    });
+  }
+  function checkin(late) {
+    var n; do { n = 1 + rnd(24); } while (present.indexOf(n) >= 0);
+    present.push(n);
+    if (!bag.length) bag = shuffle(CHECKIN.slice());
+    var t = late ? pick(LATE) : bag.pop();
+    return tag(n) + ' ' + t + (Math.random() < 0.45 ? ' o7' : '');
+  }
+  function refill() {
+    if (phase === 0) {                          // roll call: varied check-ins until the crew is assembled
+      present = []; var k = 7 + rnd(3);
+      for (var i = 0; i < k; i++) queue.push(checkin(false));
+      queue.push.apply(queue, OPS_GO); phase = 1; threadsLeft = 7; pool = shuffle(THREADS.slice());
+    } else if (phase === 1) {                   // crew coordinates; two threads interleave
+      var a = cast(pool.pop()), b = cast(pool.pop());
+      while (a.length || b.length) {
+        var src = !b.length ? a : !a.length ? b : (Math.random() < 0.6 ? a : b);
+        queue.push(src.shift());
+      }
+      if (Math.random() < 0.4 && present.length < 20) queue.push(checkin(true));
+      threadsLeft -= 2; if (threadsLeft <= 0 || pool.length < 2) phase = 2;
+    } else {                                    // escalation, then a shift change loops the story
+      OPS_END.forEach(function (t) { queue.push.apply(queue, cast(t)); });
+      phase = 0;
+    }
+  }
+  function next() { if (!queue.length) refill(); return queue.shift(); }
+  var esc = function (s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+  function fmt(line) {
+    return esc(line)
+      .replace(/\[(agent-\d+|ops)\]/g, '<span class="ag">[$1]</span>')
+      .replace(/\[REDACTED\]|█+(?: █+)*/g, function (m) { return '<span class="red">' + m + '</span>'; })
+      .replace(/\bo7$/, '<span class="o7">o7</span>');
+  }
+  function node(line) {
+    var s = document.createElement('span');
+    s.innerHTML = fmt(line) + '<span class="sep">  //  </span>';
+    return s;
+  }
+
+  var dir = parseFloat(getComputedStyle(chy).getPropertyValue('--chyron-dir')) < 0 ? -1 : 1;
+  var reduce = mq.matches, x = 0, w = 0, speed = 48, raf = 0, prev = 0, vis = true, hover = false;
+  function fill() {                             // keep the view covered; trim what has scrolled out
+    var vw = view.clientWidth, n;
+    if (dir > 0) {
+      while (x > -24) { n = node(next()); track.insertBefore(n, track.firstChild); x -= n.offsetWidth; w += n.offsetWidth; }
+      while (track.lastChild && x + w - track.lastChild.offsetWidth > vw + 24) { w -= track.lastChild.offsetWidth; track.removeChild(track.lastChild); }
+    } else {
+      while (x + w < vw + 24) { n = node(next()); track.appendChild(n); w += n.offsetWidth; }
+      while (track.firstChild && x + track.firstChild.offsetWidth < -24) { var fw = track.firstChild.offsetWidth; x += fw; w -= fw; track.removeChild(track.firstChild); }
+    }
+    track.style.transform = 'translate3d(' + x.toFixed(2) + 'px,0,0)';
+  }
+  function frame(now) {
+    raf = 0;
+    if (!vis || document.hidden || hover) return;
+    var dt = prev ? Math.min(100, now - prev) : 0; prev = now;
+    x += dir * speed * dt / 1000; fill();
+    raf = requestAnimationFrame(frame);
+  }
+  function sync() { if (!reduce && !raf && vis && !document.hidden && !hover) { prev = 0; raf = requestAnimationFrame(frame); } }
+  function start() {
+    if (reduce) {                               // one static line, no motion
+      for (var i = 0; i < 3; i++) track.appendChild(node(next()));
+      return;
+    }
+    x = dir < 0 ? view.clientWidth * 0.3 : view.clientWidth * 0.7;
+    fill(); sync();
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(start, start); else start();
+  chy.addEventListener('mouseenter', function () { hover = true; });
+  chy.addEventListener('mouseleave', function () { hover = false; sync(); });
+  document.addEventListener('visibilitychange', sync);
+  if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { vis = es[es.length - 1].isIntersecting; sync(); }).observe(chy);
+  window.__chyron = { next: next, track: track };
 })();

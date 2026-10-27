@@ -46,9 +46,8 @@
     <!-- ============ HERO ============ -->
     <section class="hero" id="top">
       <div class="hero__art">
-        <canvas class="rain" aria-hidden="true"></canvas>
         <pre class="ascii" tabindex="0" role="button" aria-label="ASCII art of a saluting face built from the repeating words saluting-face. Hover, tap, or press Enter to see it salute.">
-<span class="l" style="--i:0">salut                             </span>
+<span class="l" style="--i:0">salut                                </span>
 <span class="l" style="--i:1">ing-face-s</span>
 <span class="l" style="--i:2">aluting-face-</span>
 <span class="l" style="--i:3">saluting-face-s</span>
@@ -71,6 +70,7 @@
 <span class="l" style="--i:20">face-s</span></pre>
       </div>
       <div class="hero__copy">
+        <canvas class="rain" aria-hidden="true"></canvas>
         <h1 class="wordmark">saluting<span class="hy">-</span>face</h1>
         <p class="pitch">AI bot networks, wired into the way your company already works.</p>
         <p class="prompt" aria-live="off"><span class="dim">$</span> teams of agents · your tools · your workflows<span class="typed" aria-hidden="true"></span><span class="cursor" aria-hidden="true">_</span><input class="typed-sink" type="text" tabindex="-1" aria-hidden="true" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></p>
@@ -127,6 +127,10 @@
       <h2 class="h2"><span class="dim">04 //</span> contact</h2>
       <p class="lede">Have a workflow that should run itself? Tell us about it.</p>
       <p class="contact__line"><span class="dim">$ mail</span> <a class="contact__email" href="mailto:info@saluting-face.com">info@saluting-face.com</a></p>
+      <div class="rollcall chyron" aria-hidden="true">
+        <span class="chyron__label">$ tail -f crew.log</span>
+        <div class="chyron__view"><div class="chyron__track"></div></div>
+      </div>
     </section>
   </main>
 
@@ -134,6 +138,7 @@
     <span>&copy; <span id="year">2026</span> Saluting Face LLC</span>
     <span class="dim">saluting<span class="y">-</span>face.com</span>
   </footer>
+  <div class="ground" aria-hidden="true"><div class="bots"></div></div>
 
   <script src="main.js" defer></script>
 </body>
