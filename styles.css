@@ -98,7 +98,9 @@ a { color: inherit; }
   max-width: 34ch;
   font-weight: 500;
 }
-.prompt { margin: 0 0 32px; color: var(--ink-dim); font-size: 14px; }
+.prompt { margin: 0 0 32px; color: var(--ink-dim); font-size: 14px; position: relative; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
+.hero__copy { min-width: 0; }
+.typed-sink { position: absolute; left: 0; top: 0; width: 1px; height: 1px; padding: 0; border: 0; margin: 0; opacity: 0; font-size: 16px; color: transparent; background: transparent; caret-color: transparent; pointer-events: none; outline: none; }
 .cursor { color: var(--yellow); margin-left: 2px; }
 
 .hero__actions { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -188,6 +190,19 @@ a { color: inherit; }
   @keyframes shimmer { 0% { background-position: 100% 0; } 45%, 100% { background-position: 0% 0; } }
   @keyframes blink { 50% { opacity: 0; } }
 }
+
+/* ---------- boot sequence: hero copy types in (JS; skipped for reduced motion / no JS) ---------- */
+.boot .hero__copy > * { opacity: 0; }
+.ch.pend { opacity: 0; }
+.ch.at { position: relative; }
+.ch.at::after {
+  content: ""; position: absolute; left: 100%; top: 0.08em; bottom: 0.08em; width: 0.6em;
+  background: var(--yellow); opacity: .9; pointer-events: none;
+}
+.typing .cursor { visibility: hidden; }
+.btn--primary .ch.at::after { background: var(--bg); }
+.btn.pend { background-color: transparent; border-color: transparent; }
+.btn { transition: border-color .25s, background-color .25s, color .15s; }
 
 /* ---------- responsive ---------- */
 @media (max-width: 900px) {
